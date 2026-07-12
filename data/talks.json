@@ -1,0 +1,18 @@
+[
+  {
+    "id": "example-manual-handling",
+    "title": "Example — Manual Handling: Kegs & Pallets",
+    "date": "2026-07-10",
+    "mediaType": "video",
+    "mediaUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "notes": "Lift with your legs, not your back. Keep loads close to your body. Use the pallet jack for anything over 20kg. Report any strain or discomfort to your supervisor immediately — don't push through it."
+  },
+  {
+    "id": "example-chemical-safety",
+    "title": "Example — Caustic Cleaning Chemical Safety",
+    "date": "2026-06-05",
+    "mediaType": "pdf",
+    "mediaUrl": "documents/example-sds-caustic.pdf",
+    "notes": "Always wear gloves and eye protection when handling CIP caustic. Know where the eyewash station and SDS folder are. In case of skin or eye contact, flush with water for at least 15 minutes and seek medical attention."
+  }
+]

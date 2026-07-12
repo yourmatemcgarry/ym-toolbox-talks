@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add a Toolbox Talk — Your Mates Brewing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-3xl mx-auto px-4 py-4">
+      <a href="index.html" class="flex items-center gap-2 font-bold text-lg">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+        Your Mates Brewing — Toolbox Talks
+      </a>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-xl mx-auto w-full px-4 py-8">
+    <a href="index.html" class="text-sm text-amber-700 hover:underline">← All toolbox talks</a>
+
+    <div class="mt-4 bg-white rounded-xl border border-slate-200 p-6">
+      <h1 class="text-xl font-bold text-slate-900">Add a toolbox talk</h1>
+      <p class="text-sm text-slate-600 mt-1">
+        This creates a real commit in your GitHub repo and redeploys the
+        site — it usually takes 30–60 seconds for the new talk to appear.
+        This page has no login: anyone with the site link can use it.
+      </p>
+
+      <form id="add-form" class="mt-5 space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Title</label>
+          <input id="a-title" required placeholder="e.g. August toolbox talk — forklift safety" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Date</label>
+          <input id="a-date" type="date" required class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Notes / key points</label>
+          <textarea id="a-notes" rows="4" placeholder="What was covered in the talk (optional)" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Attachment</label>
+          <select id="a-mediatype" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+            <option value="none">None</option>
+            <option value="pdf">PDF (upload)</option>
+            <option value="image">Photo (upload)</option>
+            <option value="video">Video (paste a YouTube/Vimeo link)</option>
+          </select>
+        </div>
+
+        <div id="a-file-wrap" class="hidden">
+          <input id="a-file" type="file" accept=".pdf,image/*" class="w-full text-sm" />
+          <p class="text-xs text-slate-400 mt-1">Max ~4MB. For anything bigger, use a video link instead, or add the file directly via GitHub.</p>
+        </div>
+
+        <div id="a-url-wrap" class="hidden">
+          <input id="a-url" type="url" placeholder="https://www.youtube.com/watch?v=…" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          <p class="text-xs text-slate-400 mt-1">Use an unlisted YouTube or Vimeo link so it isn't publicly searchable.</p>
+        </div>
+
+        <button type="submit" id="a-submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium py-2.5 rounded-lg">
+          Add toolbox talk
+        </button>
+        <p id="a-status" class="text-sm mt-2 hidden"></p>
+      </form>
+    </div>
+  </main>
+
+  <script type="module">
+    const form = document.getElementById("add-form");
+    const mediaTypeSel = document.getElementById("a-mediatype");
+    const fileWrap = document.getElementById("a-file-wrap");
+    const urlWrap = document.getElementById("a-url-wrap");
+    const status = document.getElementById("a-status");
+    const submitBtn = document.getElementById("a-submit");
+
+    document.getElementById("a-date").value = new Date().toISOString().slice(0, 10);
+
+    mediaTypeSel.addEventListener("change", () => {
+      const v = mediaTypeSel.value;
+      fileWrap.classList.toggle("hidden", v !== "pdf" && v !== "image");
+      urlWrap.classList.toggle("hidden", v !== "video");
+    });
+
+    function showStatus(message, isError) {
+      status.textContent = message;
+      status.className = "text-sm mt-2 " + (isError ? "text-red-600" : "text-emerald-700") + " font-medium";
+      status.classList.remove("hidden");
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // reader.result looks like "data:application/pdf;base64,AAAA..."
+          const base64 = String(reader.result).split(",")[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("a-title").value.trim();
+      const date = document.getElementById("a-date").value;
+      const notes = document.getElementById("a-notes").value.trim();
+      const mediaType = mediaTypeSel.value;
+
+      if (!title || !date) {
+        showStatus("Title and date are required.", true);
+        return;
+      }
+
+      const payload = { title, date, notes, mediaType, mediaUrl: "" };
+
+      if (mediaType === "video") {
+        const url = document.getElementById("a-url").value.trim();
+        if (!url) {
+          showStatus("Paste a video link, or change the attachment type.", true);
+          return;
+        }
+        payload.mediaUrl = url;
+      } else if (mediaType === "pdf" || mediaType === "image") {
+        const fileInput = document.getElementById("a-file");
+        const file = fileInput.files[0];
+        if (!file) {
+          showStatus("Choose a file to upload, or change the attachment type.", true);
+          return;
+        }
+        if (file.size > 4 * 1024 * 1024) {
+          showStatus("That file is over 4MB — use a smaller file, or add it directly via GitHub.", true);
+          return;
+        }
+        payload.fileBase64 = await fileToBase64(file);
+        payload.fileName = file.name;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Adding…";
+
+      try {
+        const res = await fetch("/.netlify/functions/add-talk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.error || "Something went wrong.");
+        }
+
+        showStatus("✅ Added! It'll appear on the toolbox talks list in about a minute, once the site finishes redeploying.", false);
+        form.reset();
+        document.getElementById("a-date").value = new Date().toISOString().slice(0, 10);
+        fileWrap.classList.add("hidden");
+        urlWrap.classList.add("hidden");
+      } catch (err) {
+        showStatus("Couldn't add the talk: " + err.message, true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Add toolbox talk";
+      }
+    });
+  </script>
+</body>
+</html>

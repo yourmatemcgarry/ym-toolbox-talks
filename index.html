@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Toolbox Talks — Your Mates Brewing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-3xl mx-auto px-4 py-4">
+      <h1 class="flex items-center gap-2 font-bold text-lg">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+        Your Mates Brewing — Toolbox Talks
+      </h1>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <p class="text-slate-600">
+        Open a toolbox talk below, review the material, then write your name
+        and tick the box to confirm you've read and understood it.
+      </p>
+      <a href="add-talk.html" class="shrink-0 text-sm font-medium px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white">
+        + Add a toolbox talk
+      </a>
+    </div>
+
+    <div id="talk-list" class="mt-6 space-y-3">
+      <p class="text-slate-400 text-sm">Loading…</p>
+    </div>
+  </main>
+
+  <footer class="max-w-3xl mx-auto px-4 py-8 text-xs text-slate-500 leading-relaxed">
+    <p>
+      Sign-offs recorded here support Your Mates Brewing's obligations under
+      the <em>Work Health and Safety Act 2011</em> (Qld) to provide workers
+      with information, training and instruction, and to keep records of
+      that training. Keep training records for at least 5 years — see
+      <a class="underline" href="https://www.worksafe.qld.gov.au" target="_blank" rel="noopener">worksafe.qld.gov.au</a>
+      for current requirements.
+    </p>
+  </footer>
+
+  <script type="module">
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function formatDate(value) {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return value;
+      return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+    }
+
+    const list = document.getElementById("talk-list");
+
+    fetch("data/talks.json", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((talks) => {
+        const sorted = [...talks].sort((a, b) => (a.date < b.date ? 1 : -1));
+        if (sorted.length === 0) {
+          list.innerHTML = `<p class="text-slate-500 text-sm">No toolbox talks yet — click "Add a toolbox talk" above.</p>`;
+          return;
+        }
+        list.innerHTML = sorted
+          .map(
+            (t) => `
+          <a href="talk.html?id=${encodeURIComponent(t.id)}" class="block bg-white rounded-xl border border-slate-200 p-5 hover:border-amber-400 hover:shadow-sm transition">
+            <h2 class="font-semibold text-slate-900">${escapeHtml(t.title)}</h2>
+            <p class="text-sm text-slate-500 mt-1">${formatDate(t.date)}</p>
+          </a>
+        `
+          )
+          .join("");
+      })
+      .catch(() => {
+        list.innerHTML = `<p class="text-red-600 text-sm">Couldn't load toolbox talks.</p>`;
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Toolbox Talk — Your Mates Brewing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:,">
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-3xl mx-auto px-4 py-4">
+      <a href="index.html" class="flex items-center gap-2 font-bold text-lg">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+        Your Mates Brewing — Toolbox Talks
+      </a>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+    <a href="index.html" class="text-sm text-amber-700 hover:underline">← All toolbox talks</a>
+
+    <div id="talk-content" class="mt-4 bg-white rounded-xl border border-slate-200 p-6">
+      <p class="text-slate-400 text-sm">Loading…</p>
+    </div>
+
+    <!--
+      This form is left as plain, static HTML on purpose (not built by
+      JavaScript) so Netlify's deploy-time bot can detect it and wire up
+      form handling automatically. JS below only fills in the hidden
+      talk_id / talk_title values and intercepts the submit so the page
+      doesn't have to reload — the form still works fine even with
+      JavaScript switched off, it just does a normal page redirect to
+      thanks.html instead.
+    -->
+    <form
+      id="signoff-form"
+      name="signoff"
+      method="POST"
+      action="/thanks.html"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+      class="mt-6 bg-white rounded-xl border border-slate-200 p-6"
+    >
+      <input type="hidden" name="form-name" value="signoff" />
+      <p class="hidden">
+        <label>Don't fill this out if you're human: <input name="bot-field" /></label>
+      </p>
+      <input type="hidden" name="talk_id" id="f-talk-id" />
+      <input type="hidden" name="talk_title" id="f-talk-title" />
+
+      <h2 class="font-semibold text-slate-900">Confirm you've read &amp; understood</h2>
+
+      <label class="block text-sm font-medium text-slate-700 mt-4">Your full name</label>
+      <input
+        type="text"
+        name="full_name"
+        id="f-name"
+        required
+        placeholder="Full name"
+        class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+      />
+
+      <label class="flex items-start gap-2 mt-4 text-sm text-slate-700">
+        <input type="checkbox" name="confirmed" id="f-confirmed" value="yes" required class="mt-1" />
+        <span>I confirm I have read and understood this toolbox talk.</span>
+      </label>
+
+      <button
+        type="submit"
+        id="f-submit"
+        class="mt-5 px-5 py-2 rounded-lg text-sm font-medium text-white bg-amber-500 hover:bg-amber-600"
+      >
+        Submit sign-off
+      </button>
+
+      <p id="f-status" class="text-sm mt-3 hidden"></p>
+    </form>
+  </main>
+
+  <footer class="max-w-3xl mx-auto px-4 py-8 text-xs text-slate-500 leading-relaxed">
+    <p>
+      Sign-off records are captured through Netlify Forms — view or export
+      them any time from your Netlify dashboard under
+      <strong>Site configuration → Forms</strong>.
+    </p>
+  </footer>
+
+  <script type="module">
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function formatDate(value) {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return value;
+      return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+    }
+
+    // Best-effort YouTube/Vimeo embed rewrite.
+    function toEmbedUrl(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
+          return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
+        }
+        if (u.hostname === "youtu.be") return `https://www.youtube.com/embed${u.pathname}`;
+        if (u.hostname.includes("vimeo.com")) {
+          const id = u.pathname.split("/").filter(Boolean).pop();
+          return `https://player.vimeo.com/video/${id}`;
+        }
+        return url;
+      } catch {
+        return url;
+      }
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const talkId = params.get("id");
+    const contentEl = document.getElementById("talk-content");
+    const form = document.getElementById("signoff-form");
+    form.classList.add("hidden"); // shown once we've confirmed the talk exists
+
+    fetch("data/talks.json", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((talks) => {
+        const talk = talks.find((t) => t.id === talkId);
+
+        if (!talk) {
+          contentEl.innerHTML = `<p class="text-red-600 text-sm">Couldn't find that toolbox talk. <a class="underline" href="index.html">Back to the list</a>.</p>`;
+          return;
+        }
+
+        document.title = `${talk.title} — Toolbox Talk`;
+
+        let mediaHtml = "";
+        if (talk.mediaType === "image") {
+          mediaHtml = `<img src="${talk.mediaUrl}" alt="${escapeHtml(talk.title)}" class="max-w-full rounded-lg mx-auto mt-4" />`;
+        } else if (talk.mediaType === "video") {
+          const embed = toEmbedUrl(talk.mediaUrl);
+          mediaHtml =
+            embed !== talk.mediaUrl
+              ? `<div class="aspect-video mt-4"><iframe src="${embed}" class="w-full h-full rounded-lg" allowfullscreen></iframe></div>`
+              : `<video src="${talk.mediaUrl}" controls class="w-full rounded-lg mt-4"></video>`;
+        } else if (talk.mediaType === "pdf") {
+          mediaHtml = `<iframe src="${talk.mediaUrl}" class="w-full h-[60vh] rounded-lg border border-slate-200 mt-4"></iframe>
+            <p class="text-xs text-slate-400 mt-2">If the PDF doesn't display, <a class="underline" href="${talk.mediaUrl}" target="_blank" rel="noopener">open it in a new tab</a>.</p>`;
+        }
+
+        contentEl.innerHTML = `
+          <h1 class="text-xl font-bold text-slate-900">${escapeHtml(talk.title)}</h1>
+          <p class="text-sm text-slate-500 mt-1">${formatDate(talk.date)}</p>
+          ${talk.notes ? `<p class="text-sm text-slate-700 mt-4 whitespace-pre-line">${escapeHtml(talk.notes)}</p>` : ""}
+          ${mediaHtml}
+        `;
+
+        document.getElementById("f-talk-id").value = talk.id;
+        document.getElementById("f-talk-title").value = talk.title;
+        form.classList.remove("hidden");
+      })
+      .catch(() => {
+        contentEl.innerHTML = `<p class="text-red-600 text-sm">Couldn't load toolbox talks.</p>`;
+      });
+
+    // Progressive enhancement: submit via fetch so the page doesn't reload.
+    // If this fails for any reason, the form still works as a normal POST
+    // to Netlify (it'll just redirect to thanks.html instead).
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById("f-submit");
+      const status = document.getElementById("f-status");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting…";
+
+      const body = new URLSearchParams(new FormData(form));
+
+      try {
+        const res = await fetch("/", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        if (!res.ok) throw new Error("Network response was not ok");
+
+        status.textContent = "✅ Thanks — your sign-off has been recorded.";
+        status.className = "text-sm mt-3 text-emerald-700 font-medium";
+        status.classList.remove("hidden");
+        form.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
+      } catch (err) {
+        status.textContent = "Something went wrong submitting this. Please try again, or check your connection.";
+        status.className = "text-sm mt-3 text-red-600 font-medium";
+        status.classList.remove("hidden");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit sign-off";
+      }
+    });
+  </script>
+</body>
+</html>
