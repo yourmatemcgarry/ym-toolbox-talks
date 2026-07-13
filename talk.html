@@ -179,19 +179,30 @@
       const body = new URLSearchParams(new FormData(form));
 
       try {
-        const res = await fetch("/", {
+        // Post to the current page path (not a hardcoded "/") — this is the
+        // more reliable target for Netlify's form handler.
+        const res = await fetch(window.location.pathname, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
+          redirect: "follow",
         });
-        if (!res.ok) throw new Error("Network response was not ok");
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error(
+              "404 — Netlify hasn't registered this form yet. Check Site → Forms in your Netlify dashboard; if \"signoff\" isn't listed there, trigger a fresh deploy (Deploys → Trigger deploy → Clear cache and deploy site)."
+            );
+          }
+          throw new Error(`Server responded with status ${res.status}.`);
+        }
 
         status.textContent = "✅ Thanks — your sign-off has been recorded.";
         status.className = "text-sm mt-3 text-emerald-700 font-medium";
         status.classList.remove("hidden");
         form.querySelectorAll("input, button").forEach((el) => (el.disabled = true));
       } catch (err) {
-        status.textContent = "Something went wrong submitting this. Please try again, or check your connection.";
+        status.textContent = "Couldn't submit: " + (err.message || "please try again, or check your connection.");
         status.className = "text-sm mt-3 text-red-600 font-medium";
         status.classList.remove("hidden");
         submitBtn.disabled = false;
