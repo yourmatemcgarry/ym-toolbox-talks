@@ -35,13 +35,29 @@ site can commit changes on your behalf — that's the only extra setup step.
 - Sign-off submissions go to **Netlify Forms** — no server code, no
   database. Netlify stores each submission (name, talk, timestamp) and
   gives you a table you can view or export as CSV from your dashboard.
+- Each submission is also mirrored, automatically, into `data/signoffs.json`
+  by a second Netlify Function (`netlify/functions/record-signoff.js`),
+  triggered by a webhook notification you configure once (see step 5 below).
+  `talk.html` reads that file and shows a live "Who's signed off" list right
+  on the page — no need to open the Netlify dashboard to see it.
 
 ### Viewing who's signed off
 
-Go to your Netlify site → **Site configuration → Forms** (or the **Forms**
-tab, depending on your Netlify UI version). You'll see a "signoff" form with
-every submission: name, which talk, and when. Export to CSV from there for
-a compliance record — no code required.
+Two ways:
+
+- **On the site itself:** open any toolbox talk — there's a "Who's signed
+  off" list under the sign-off form. It updates within about a minute of
+  each new sign-off (it's reading a file that gets committed after Netlify's
+  webhook fires, not a truly instant live feed).
+- **In Netlify:** go to your site → **Site configuration → Forms** (or the
+  **Forms** tab). You'll see a "signoff" form with every raw submission:
+  name, which talk, and when. Export to CSV from there for a compliance
+  record — no code required. This is the more authoritative source if the
+  two ever disagree, since the on-site list depends on the webhook/mirror
+  step working.
+- **In GitHub:** since every sign-off is also a commit to `data/signoffs.json`,
+  the repo's commit history is a third, tamper-evident record of exactly
+  when each sign-off landed.
 
 ### A note on how open this is
 
@@ -64,6 +80,12 @@ putting *some* gate on `add-talk.html` and the function — even a simple
 shared passcode would close off casual misuse — while leaving the staff
 sign-off exactly as-is. That's a small, self-contained follow-up whenever
 you're ready.
+
+Same open-by-design trade-off applies to `record-signoff.js`: it's a public
+URL that accepts POSTed data and writes to `data/signoffs.json` on trust,
+without checking the request actually came from Netlify's own webhook.
+Worth knowing, not worth losing sleep over at this stage — it's the same
+shape of risk as everything else here.
 
 ---
 
@@ -136,6 +158,31 @@ upload the file into `documents/` first and point `mediaUrl` at
 Vimeo link rather than uploading the file — GitHub repos aren't a good home
 for large video, and the in-site uploader caps out at ~4MB anyway.
 
+## 5. Turn on the live "Who's signed off" list
+
+This is a one-time setup step in the Netlify dashboard (not something in the
+code) — it tells Netlify to call `record-signoff.js` every time someone
+submits the sign-off form:
+
+1. Go to your site → **Site configuration → Forms → Submission
+   notifications**.
+2. **Add notification → Outgoing webhook**.
+3. **Form**: `signoff`. **Event to listen for**: New form submission.
+4. **URL to notify**: `https://YOUR-SITE-NAME.netlify.app/.netlify/functions/record-signoff`
+   (swap in your actual site URL).
+5. Save.
+
+From then on, every sign-off gets mirrored into `data/signoffs.json`
+automatically — no further action needed. If the live list on a talk page
+ever looks wrong or stuck, the Netlify Forms dashboard (see above) is always
+the source of truth to fall back on.
+
+**Build-minute note:** each mirrored sign-off is a commit, which triggers a
+redeploy, which uses a little of Netlify's free build-minute allowance (300
+minutes/month). For a small team doing one monthly toolbox talk this is
+negligible (each deploy here takes well under a minute), but it's worth
+knowing if usage grows a lot.
+
 ## Netlify Forms free-tier limit
 
 The free plan includes **100 form submissions per month**. For a team of
@@ -149,15 +196,19 @@ close, and paid plans raise the cap.
 ```
 mates-safety-simple/
 ├── index.html                     Toolbox talk list (home page)
-├── talk.html                      Talk detail + sign-off form (Netlify Forms)
+├── talk.html                      Talk detail + sign-off form + live signoff list
 ├── add-talk.html                  Add a new toolbox talk from the browser
 ├── thanks.html                    Fallback confirmation page (JS-off case)
 ├── data/
-│   └── talks.json                 The talk list — read by the site, written
-│                                   to by the add-talk.html function
+│   ├── talks.json                 The talk list — read by the site, written
+│   │                               to by the add-talk.html function
+│   └── signoffs.json              Mirrored sign-off records — read by the
+│                                   site, written to by record-signoff.js
 ├── documents/                     Uploaded/attached PDFs and photos live here
 ├── netlify/functions/
-│   └── add-talk.js                Commits new talks to GitHub via its API
+│   ├── add-talk.js                Commits new talks to GitHub via its API
+│   └── record-signoff.js          Webhook receiver — mirrors each Netlify
+│                                   Forms sign-off into data/signoffs.json
 └── netlify.toml                   Netlify deploy config (no build step)
 ```
 
